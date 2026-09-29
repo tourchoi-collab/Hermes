@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="한글로 앱 개인정보처리방침">
+  <title>한글로 개인정보처리방침</title>
+
+
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   "Noto Sans KR", Arial, sans-serif;
+      line-height: 1.7;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      color: #222;
+      background: #fff;
+    }
+
+    h1 {
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      margin-top: 32px;
+      font-size: 1.2rem;
+    }
+
+    .date {
+      color: #666;
+      margin-bottom: 32px;
+    }
+
+    .company-info {
+      background: #f6f8fa;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 24px 0 32px 0;
+    }
+
+    .company-info p {
+      margin: 5px 0;
+    }
+
+    a {
+      color: #0969da;
+    }
+
+    .summary {
+      background: #f6f8fa;
+      border-left: 4px solid #0969da;
+      border-radius: 0 8px 8px 0;
+      padding: 16px 20px;
+      margin: 24px 0;
+    }
+
+    .summary p:last-child {
+      margin-bottom: 0;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin: 16px 0;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 480px;
+      font-size: 0.95rem;
+    }
+
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 10px 12px;
+      border-bottom: 1px solid #d8dee4;
+    }
+
+    th {
+      background: #f6f8fa;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    ul {
+      padding-left: 20px;
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>한글로 개인정보처리방침</h1>
+
+  <p class="date">
+    시행일: 2026년 10월 1일
+  </p>
+
+  <p>
+    본 방침은 주식회사 에르메스투어(이하 “회사”)가 제공하는 <strong>한글로</strong>
+    앱(Android 패키지 com.tour.screentranslate, 이하 “앱”)에 적용됩니다.
+    앱은 휴대폰 화면의 외국어 글자를 그 자리에서 한국어로 바꿔 보여 줍니다.
+  </p>
+
+  <div class="summary">
+    <p>
+      앱은 안드로이드 접근성 기능으로 <strong>화면에 보이는 글자와 그 위치</strong>를 읽어
+      번역문을 원래 자리에 겹쳐 보여 줍니다. 읽은 글자와 화면 사진은
+      <strong>휴대폰 안에서만 처리</strong>하며 <strong>저장하지 않고 어디로도 보내지 않습니다.</strong>
+      회사는 앱을 위한 서버를 운영하지 않습니다.
+    </p>
+  </div>
+
+  <h2>1. 화면 글자 읽기 (접근성 기능)</h2>
+
+  <ul>
+    <li>앱은 안드로이드 접근성 서비스(AccessibilityService)로 현재 화면에 보이는 글자와 그 위치를 읽습니다.</li>
+    <li>글자가 그림으로 된 화면(메뉴판 사진, 안내판 등)에서는 글자의 위치를 찾기 위해 <strong>화면 사진</strong>을 찍어 기기 안에서 글자를 인식합니다.</li>
+    <li>읽은 글자와 화면 사진은 <strong>번역문을 원래 자리에 겹쳐 보여 주는 데에만</strong> 사용하며, 처리가 끝나면 남지 않습니다.</li>
+    <li>앱은 키 입력을 가로채지 않습니다. 비밀번호 칸의 글자는 안드로이드가 가려서 전달하므로 읽을 수 없습니다.</li>
+    <li>앱은 이 권한을 켜기 전에 위 내용을 알리고 <strong>동의</strong>를 받습니다.</li>
+  </ul>
+
+  <h2>2. 번역</h2>
+
+  <p>
+    번역은 휴대폰에 받아 둔 언어팩(Google ML Kit)으로 <strong>인터넷 없이 기기 안에서</strong>
+    이루어집니다. 번역할 글은 외부 서버로 전송되지 않습니다. 인터넷은 언어팩을 받을 때에만 사용합니다.
+  </p>
+
+  <h2>3. 처리하는 정보</h2>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>항목</th><th>처리 위치</th><th>이용 목적</th><th>보관</th></tr>
+      <tr><td><strong>화면의 글자와 위치</strong></td><td>기기 안</td><td>번역문 표시</td><td>저장하지 않음</td></tr>
+      <tr><td><strong>화면 사진</strong></td><td>기기 안</td><td>그림 속 글자 인식</td><td>저장하지 않음</td></tr>
+      <tr><td><strong>앱 설정</strong> (크루즈 모드, 옮길 언어 등)</td><td>기기 안</td><td>설정 유지</td><td>앱 삭제 시 삭제</td></tr>
+      <tr><td><strong>진단 정보</strong> (아래 4항)</td><td>Google ML Kit</td><td>오류 진단·사용 분석</td><td>Google 정책에 따름</td></tr>
+    </table>
+  </div>
+
+  <h2>4. Google ML Kit의 진단 정보</h2>
+
+  <p>
+    앱이 사용하는 Google ML Kit(번역·언어 판별·글자 인식)은 기능 개선과 오류 진단을 위해
+    다음 정보를 Google로 전송할 수 있습니다: 기기 정보(기종·운영체제 버전), 앱 정보(패키지 이름·버전),
+    성능 지표, 오류 코드, 설정한 언어, 설치별 식별자.
+    <strong>화면의 글자나 번역 내용은 포함되지 않습니다.</strong>
+    이 정보는 암호화(HTTPS)되어 전송되며 제3자에게 제공되지 않습니다.
+    자세한 내용은 <a href="https://developers.google.com/ml-kit/android-data-disclosure">Google ML Kit 데이터 공개</a>를 참고하십시오.
+  </p>
+
+  <h2>5. 처리하지 않는 정보</h2>
+
+  <ul>
+    <li>이름, 연락처, 위치 정보, 사진 보관함</li>
+    <li>회원 정보 — 회원가입·로그인 절차가 없습니다</li>
+    <li>광고 식별자 — 앱에 광고가 없습니다</li>
+  </ul>
+
+  <h2>6. 앱이 요청하는 권한</h2>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>권한</th><th>목적</th></tr>
+      <tr><td><strong>접근성 서비스</strong></td><td>화면의 글자와 위치를 읽고, 화면 사진을 찍어 그림 속 글자를 인식</td></tr>
+      <tr><td><strong>인터넷</strong></td><td>언어팩 내려받기</td></tr>
+      <tr><td><strong>알림</strong></td><td>언어팩이 없을 때처럼 번역이 안 되는 이유 안내</td></tr>
+    </table>
+  </div>
+
+  <h2>7. 이용자의 권리</h2>
+
+  <ul>
+    <li>접근성 권한은 안드로이드 설정이나 앱 설정의 「완전히 끄기」로 언제든 끌 수 있습니다.</li>
+    <li>앱을 삭제하면 기기에 저장된 설정과 언어팩이 모두 삭제됩니다.</li>
+    <li>회사는 이용자의 정보를 서버에 보관하지 않으므로 별도로 삭제할 정보가 없습니다.</li>
+  </ul>
+
+  <h2>8. 개인정보의 제3자 제공</h2>
+
+  <p>
+    회사는 이용자의 개인정보를 제3자에게 제공하거나 처리를 위탁하지 않습니다.
+    4항의 진단 정보는 Google ML Kit이 직접 처리합니다.
+  </p>
+
+  <h2>9. 아동의 개인정보</h2>
+
+  <p>
+    이 앱은 아동을 대상으로 하지 않으며, 아동의 개인정보를 의도적으로 수집하지 않습니다.
+  </p>
+
+  <h2>10. 개인정보처리방침의 변경</h2>
+
+  <p>
+    본 방침의 내용이 변경되는 경우, 변경된 시행일과 변경 내용을 명시하여 본
+    페이지를 통해 안내합니다.
+  </p>
+
+  <h2>11. 문의</h2>
+
+  <p>개인정보 처리에 관한 문의는 아래로 연락해 주시기 바랍니다.</p>
+
+  <div class="company-info">
+    <p><strong>회사명:</strong> 주식회사 에르메스투어</p>
+    <p><strong>사업자등록번호:</strong> 110-86-02518</p>
+    <p><strong>통신판매업신고번호:</strong> 2025-서울중구-501</p>
+    <p><strong>문의 담당자:</strong> 최종천</p>
+    <p><strong>이메일:</strong> <a href="mailto:hermestour.eu@gmail.com">hermestour.eu@gmail.com</a></p>
+  </div>
+
+  <h2 lang="en" style="margin-top:56px">Hangeullo Privacy Policy (English summary)</h2>
+
+  <div lang="en">
+    <p>Hangeullo (com.tour.screentranslate), provided by HermesTour Co., Ltd., overlays Korean translations on foreign-language text shown on the phone screen.</p>
+    <ul>
+      <li>The app uses the Android Accessibility Service to read on-screen text and its position, and takes screenshots to recognize text inside images. This is used only to draw translations in place, processed <strong>on the device</strong>, and <strong>never stored or transmitted</strong>. The app shows a disclosure and asks for consent before the permission is enabled.</li>
+      <li>Translation runs offline with Google ML Kit language packs. The internet is used only to download language packs.</li>
+      <li>Google ML Kit may send Google diagnostics (device and app information, performance metrics, error codes, selected languages, a per-installation identifier). It does not include screen text or translations. See the <a href="https://developers.google.com/ml-kit/android-data-disclosure">ML Kit data disclosure</a>.</li>
+      <li>No accounts, no ads, no location, contacts or photos are collected. The company operates no server for this app.</li>
+      <li>Contact: <a href="mailto:hermestour.eu@gmail.com">hermestour.eu@gmail.com</a></li>
+    </ul>
+  </div>
+
+</body>
+</html>
