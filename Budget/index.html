@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>여행 견적 계산기</title>
+<style>
+  :root {
+    --fg: #222; --muted: #666; --line: #ddd; --bg: #fff; --soft: #f6f7f9;
+    --accent: #1f5fbf; --warn: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", Arial, sans-serif;
+    color: var(--fg); background: var(--bg); margin: 0; padding: 24px 16px 60px; line-height: 1.5;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { margin: 0 0 4px; font-size: 1.5rem; }
+  h2 { font-size: 1.1rem; margin: 28px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--fg); }
+  .lead { color: var(--muted); margin: 0 0 16px; font-size: .92rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 14px; }
+  label { display: flex; flex-direction: column; font-size: .82rem; color: var(--muted); gap: 3px; }
+  input, select, textarea {
+    font: inherit; font-size: .95rem; color: var(--fg); padding: 6px 8px;
+    border: 1px solid #bbb; border-radius: 4px; background: #fff; width: 100%;
+  }
+  input[type=number] { text-align: right; }
+  textarea { min-height: 70px; resize: vertical; }
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th, td { border: 1px solid var(--line); padding: 5px 6px; vertical-align: middle; }
+  th { background: var(--soft); font-weight: 600; white-space: nowrap; }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  td input, td select { padding: 4px 6px; font-size: .9rem; }
+  .items td:nth-child(1) { min-width: 90px; }
+  .items td:nth-child(2) { min-width: 160px; }
+  .items td:nth-child(3) { min-width: 80px; }
+  .items td:nth-child(4) { min-width: 130px; }
+  .items td:nth-child(5), .items td:nth-child(6), .items td:nth-child(7), .items td:nth-child(8) { min-width: 90px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  button {
+    font: inherit; font-size: .88rem; padding: 6px 12px; border-radius: 4px;
+    border: 1px solid #999; background: #fff; cursor: pointer;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.del { border: none; color: var(--warn); padding: 2px 6px; }
+  .note { font-size: .8rem; color: var(--muted); margin-top: 6px; }
+  .warn { color: var(--warn); font-size: .85rem; margin-top: 8px; }
+  .summary td.num { font-variant-numeric: tabular-nums; }
+  .summary tr.total td { font-weight: 700; background: var(--soft); }
+  .big { font-size: 1.05rem; font-weight: 700; }
+  .disabled { opacity: .45; }
+
+  /* ---------- 고객용 견적서(인쇄 전용) ---------- */
+  #quote, #internal-print { display: none; }
+  @media print {
+    @page { size: A4; margin: 16mm; }
+    body { padding: 0; }
+    .screen-only { display: none !important; }
+    #quote { display: block; }
+    #internal-print { display: none; }
+    body.print-internal #internal-print { display: block; page-break-before: always; }
+    h2 { break-after: avoid; }
+    table { break-inside: avoid; }
+  }
+  .q-head { text-align: center; margin-bottom: 18px; }
+  .q-head h1 { font-size: 1.6rem; letter-spacing: .3em; }
+  .q-meta td:first-child, .q-price td:first-child { width: 28%; background: var(--soft); font-weight: 600; }
+  .q-text { white-space: pre-wrap; border: 1px solid var(--line); padding: 8px 10px; min-height: 40px; }
+  .q-foot { margin-top: 18px; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ================= 입력 화면 ================= -->
+<div class="screen-only">
+  <h1>여행 견적 · 원가 계산기</h1>
+  <p class="lead">입력값은 이 브라우저에 자동 저장됩니다. 다른 PC에서 쓰려면 ‘파일로 저장’ 후 ‘불러오기’를 사용하세요.</p>
+
+  <h2>1. 행사 정보</h2>
+  <div class="grid">
+    <label>행사명<input id="title" type="text" placeholder="예: OO회사 다낭 인센티브"></label>
+    <label>고객명(수신)<input id="client" type="text"></label>
+    <label>목적지<input id="dest" type="text"></label>
+    <label>출발일<input id="depart" type="date"></label>
+    <label>박 수<input id="nights" type="number" min="0" step="1" value="3"></label>
+    <label>일 수<input id="days" type="number" min="1" step="1" value="5"></label>
+    <label>성인(유료)<input id="adults" type="number" min="0" step="1" value="15"></label>
+    <label>아동(유료)<input id="children" type="number" min="0" step="1" value="0"></label>
+    <label>FOC·인솔자(무료)<input id="foc" type="number" min="0" step="1" value="1"></label>
+    <label>견적 담당자<input id="staff" type="text"></label>
+    <label>견적일<input id="qdate" type="date"></label>
+    <label>견적 유효기간<input id="valid" type="text" placeholder="예: 견적일로부터 14일"></label>
+  </div>
+
+  <h2>2. 환율 (1 외화 = ? 원)</h2>
+  <div class="table-scroll">
+    <table id="fxTable" style="max-width:520px">
+      <thead><tr><th>통화</th><th class="num">1단위당 원화</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="btns"><button type="button" id="addFx">+ 통화 추가</button></div>
+  <p class="note">환율은 자동 조회하지 않습니다. 적용할 환율(송금·카드 기준 등)을 직접 입력하세요. 엔화도 1엔 기준입니다(예: 9.2).</p>
+
+  <h2>3. 원가 항목</h2>
+  <div class="table-scroll">
+    <table class="items" id="itemTable">
+      <thead>
+        <tr>
+          <th>구분</th><th>내역</th><th>통화</th><th>계산 방식</th>
+          <th class="num">성인 단가<br><small>(단체·객실은 단가)</small></th>
+          <th class="num">아동 단가</th>
+          <th class="num">객실 수</th>
+          <th class="num">원화 합계</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="btns">
+    <button type="button" data-add="항공">+ 항공료</button>
+    <button type="button" data-add="호텔">+ 호텔</button>
+    <button type="button" data-add="지상비">+ 지상비</button>
+    <button type="button" data-add="기타">+ 기타 경비</button>
+  </div>
+  <p class="note">
+    <b>1인당</b>: 성인 단가 × (성인 + FOC) + 아동 단가 × 아동 · 아동 단가를 비우면 성인 단가 적용<br>
+    <b>객실×박</b>: 1실 1박 단가 × 객실 수 × 박 수 (FOC 객실도 객실 수에 포함해 입력)<br>
+    <b>단체 총액</b>: 버스·가이드비처럼 팀 전체에 한 번 드는 금액
+  </p>
+
+  <h2>4. 마진 · 반올림</h2>
+  <div class="grid">
+    <label>마진율(%) — 판매가 = 원가 × (1 + 마진율)<input id="margin" type="number" step="0.1" value="10"></label>
+    <label>1인 판매가 올림 단위
+      <select id="round">
+        <option value="1">올림 안 함</option>
+        <option value="100">100원</option>
+        <option value="1000" selected>1,000원</option>
+        <option value="10000">10,000원</option>
+      </select>
+    </label>
+  </div>
+
+  <h2>5. 계산 결과</h2>
+  <div class="table-scroll">
+    <table class="summary" id="summary"></table>
+  </div>
+  <div id="warnings"></div>
+  <p class="note">
+    FOC 원가(1인당 항목 × FOC 수)와 객실·단체 비용은 유료 인원(성인 + 아동) 수로 똑같이 나눠 1인 원가에 더합니다.
+    부가세 등 세금은 계산에 포함하지 않았습니다.
+  </p>
+
+  <h2>6. 견적서 문구</h2>
+  <div class="grid" style="grid-template-columns: 1fr;">
+    <label>포함 사항<textarea id="incl" placeholder="예: 왕복 항공권(유류할증료 포함), 4성급 호텔 2인 1실, 일정상 식사·입장료, 전용 차량, 현지 가이드"></textarea></label>
+    <label>불포함 사항<textarea id="excl" placeholder="예: 개인 경비, 매너팁, 여행자 보험"></textarea></label>
+    <label>비고<textarea id="memo"></textarea></label>
+  </div>
+
+  <h2>7. 저장 · 인쇄</h2>
+  <div class="btns">
+    <button type="button" class="primary" id="printBtn">고객용 견적서 인쇄 / PDF</button>
+    <label style="flex-direction:row;align-items:center;gap:6px;color:var(--fg);font-size:.88rem">
+      <input type="checkbox" id="printInternal" style="width:auto"> 내부 원가표도 함께 인쇄
+    </label>
+  </div>
+  <div class="btns">
+    <button type="button" id="saveFile">파일로 저장(.json)</button>
+    <button type="button" id="loadFile">불러오기</button>
+    <input type="file" id="fileInput" accept=".json,application/json" hidden>
+    <button type="button" id="resetBtn">새 견적(초기화)</button>
+  </div>
+  <p class="note">PDF로 저장하려면 인쇄 창에서 대상(프린터)을 ‘PDF로 저장’으로 고르세요. 고객용 견적서에는 원가·마진이 나오지 않습니다.</p>
+</div>
+
+<!-- ================= 고객용 견적서 (인쇄 시에만 표시) ================= -->
+<div id="quote">
+  <div class="q-head">
+    <h1>견 적 서</h1>
+    <div id="q-company">주식회사 에르메스투어</div>
+  </div>
+  <table class="q-meta">
+    <tbody id="q-meta"></tbody>
+  </table>
+  <h2>요금</h2>
+  <table class="q-price"><tbody id="q-price"></tbody></table>
+  <h2>포함 사항</h2><div class="q-text" id="q-incl"></div>
+  <h2>불포함 사항</h2><div class="q-text" id="q-excl"></div>
+  <div id="q-memo-wrap"><h2>비고</h2><div class="q-text" id="q-memo"></div></div>
+  <p class="q-foot" id="q-foot"></p>
+</div>
+
+<!-- ================= 내부 원가표 (선택 인쇄) ================= -->
+<div id="internal-print">
+  <h2>내부 원가표 (대외비)</h2>
+  <table id="ip-items"></table>
+  <h2>계산 결과</h2>
+  <table id="ip-summary"></table>
+</div>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const STORE_KEY = "hermes-budget-quote-v1";
+  const $ = (id) => document.getElementById(id);
+  const FIELDS = ["title","client","dest","depart","nights","days","adults","children","foc",
+                  "staff","qdate","valid","margin","round","incl","excl","memo"];
+  const MODES = { pp: "1인당", room: "객실×박", group: "단체 총액" };
+  const CATS = ["항공","호텔","지상비","기타"];
+  const DEFAULT_MODE = { "항공": "pp", "호텔": "room", "지상비": "pp", "기타": "group" };
+
+  let state = defaults();
+
+  function today() {
+    const d = new Date();
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  }
+  function defaults() {
+    return {
+      fields: { nights: "3", days: "5", adults: "15", children: "0", foc: "1",
+                margin: "10", round: "1000", qdate: today() },
+      fx: [ { cur: "KRW", rate: 1 }, { cur: "USD", rate: "" }, { cur: "EUR", rate: "" }, { cur: "JPY", rate: "" } ],
+      items: [
+        { cat: "항공", desc: "왕복 항공권", cur: "KRW", mode: "pp", adult: "", child: "", rooms: "" },
+        { cat: "호텔", desc: "호텔 2인 1실", cur: "USD", mode: "room", adult: "", child: "", rooms: "8" },
+        { cat: "지상비", desc: "현지 지상비", cur: "USD", mode: "pp", adult: "", child: "", rooms: "" }
+      ]
+    };
+  }
+
+  const num = (v) => { const n = parseFloat(String(v).replace(/,/g, "")); return isFinite(n) ? n : 0; };
+  const int = (v) => Math.max(0, Math.floor(num(v)));
+  const won = (n) => Math.round(n).toLocaleString("ko-KR") + "원";
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+  function rateOf(cur) {
+    if (cur === "KRW") return 1;
+    const f = state.fx.find((x) => x.cur === cur);
+    return f ? num(f.rate) : 0;
+  }
+
+  /* ---------- 계산 ---------- */
+  function calc() {
+    const F = state.fields;
+    const adults = int(F.adults), children = int(F.children), foc = int(F.foc), nights = int(F.nights);
+    const paying = adults + children;
+    const marginPct = num(F.margin);
+    const roundUnit = Math.max(1, int(F.round) || 1);
+    const warnings = [];
+
+    let ppAdult = 0, ppChild = 0, shared = 0;
+    const byCat = {}; CATS.forEach((c) => (byCat[c] = 0));
+    const rows = state.items.map((it) => {
+      const r = rateOf(it.cur);
+      if (it.cur !== "KRW" && !r && (num(it.adult) || num(it.child))) warnings.push(`${it.cur} 환율이 입력되지 않았습니다 (${it.desc || it.cat}).`);
+      let total = 0;
+      if (it.mode === "pp") {
+        const a = num(it.adult) * r;
+        const c = (String(it.child).trim() === "" ? num(it.adult) : num(it.child)) * r;
+        ppAdult += a; ppChild += c;
+        shared += a * foc;                       // FOC 원가 → 유료 인원 분담
+        total = a * (adults + foc) + c * children;
+      } else if (it.mode === "room") {
+        total = num(it.adult) * r * int(it.rooms) * nights;
+        if (num(it.adult) && !int(it.rooms)) warnings.push(`객실 수가 0입니다 (${it.desc || it.cat}).`);
+        shared += total;
+      } else {
+        total = num(it.adult) * r;
+        shared += total;
+      }
+      byCat[it.cat] = (byCat[it.cat] || 0) + total;
+      return total;
+    });
+
+    if (!paying) warnings.push("유료 인원(성인 + 아동)이 0명이라 1인 요금을 계산할 수 없습니다.");
+    const sharedPer = paying ? shared / paying : 0;
+    const costAdult = ppAdult + sharedPer;
+    const costChild = ppChild + sharedPer;
+    const ceil = (v) => Math.ceil(Math.round(v) / roundUnit) * roundUnit;
+    const saleAdult = paying ? ceil(costAdult * (1 + marginPct / 100)) : 0;
+    const saleChild = paying ? ceil(costChild * (1 + marginPct / 100)) : 0;
+    const totalCost = rows.reduce((s, v) => s + v, 0);
+    const totalSale = saleAdult * adults + saleChild * children;
+    const profit = totalSale - totalCost;
+
+    return { adults, children, foc, paying, nights, rows, byCat, sharedPer, costAdult, costChild,
+             saleAdult, saleChild, totalCost, totalSale, profit, marginPct, warnings };
+  }
+
+  /* ---------- 렌더링 ---------- */
+  function renderFx() {
+    const tb = $("fxTable").tBodies[0];
+    tb.innerHTML = state.fx.map((f, i) => `
+      <tr>
+        <td>${f.cur === "KRW" ? "KRW" : `<input data-fx="${i}" data-k="cur" value="${esc(f.cur)}" maxlength="5" style="text-transform:uppercase">`}</td>
+        <td class="num">${f.cur === "KRW" ? "1" : `<input type="number" step="any" min="0" data-fx="${i}" data-k="rate" value="${esc(f.rate)}">`}</td>
+        <td>${f.cur === "KRW" ? "" : `<button type="button" class="del" data-delfx="${i}" title="삭제">✕</button>`}</td>
+      </tr>`).join("");
+  }
+
+  function curOptions(sel) {
+    const list = state.fx.map((f) => f.cur).filter(Boolean);
+    if (sel && !list.includes(sel)) list.push(sel);
+    return list.map((c) => `<option ${c === sel ? "selected" : ""}>${esc(c)}</option>`).join("");
+  }
+
+  function renderItems() {
+    const tb = $("itemTable").tBodies[0];
+    tb.innerHTML = state.items.map((it, i) => `
+      <tr data-row="${i}">
+        <td><select data-it="${i}" data-k="cat">${CATS.map((c) => `<option ${c === it.cat ? "selected" : ""}>${c}</option>`).join("")}</select></td>
+        <td><input data-it="${i}" data-k="desc" value="${esc(it.desc)}"></td>
+        <td><select data-it="${i}" data-k="cur">${curOptions(it.cur)}</select></td>
+        <td><select data-it="${i}" data-k="mode">${Object.entries(MODES).map(([k, v]) => `<option value="${k}" ${k === it.mode ? "selected" : ""}>${v}</option>`).join("")}</select></td>
+        <td><input type="number" step="any" min="0" data-it="${i}" data-k="adult" value="${esc(it.adult)}"></td>
+        <td class="${it.mode === "pp" ? "" : "disabled"}"><input type="number" step="any" min="0" data-it="${i}" data-k="child" value="${esc(it.child)}" ${it.mode === "pp" ? "" : "disabled"} placeholder="${it.mode === "pp" ? "= 성인" : ""}"></td>
+        <td class="${it.mode === "room" ? "" : "disabled"}"><input type="number" step="1" min="0" data-it="${i}" data-k="rooms" value="${esc(it.rooms)}" ${it.mode === "room" ? "" : "disabled"}></td>
+        <td class="num" data-total="${i}"></td>
+        <td><button type="button" class="del" data-delit="${i}" title="삭제">✕</button></td>
+      </tr>`).join("");
+  }
+
+  function summaryHTML(r) {
+    const catRows = CATS.map((c) => `<tr><td>${c}</td><td class="num" colspan="2">${won(r.byCat[c] || 0)}</td></tr>`).join("");
+    return `
+      <tr><th>항목</th><th class="num">성인</th><th class="num">아동</th></tr>
+      ${catRows}
+      <tr class="total"><td>원가 총액 (FOC 포함)</td><td class="num" colspan="2">${won(r.totalCost)}</td></tr>
+      <tr><td>인원</td><td class="num">${r.adults}명</td><td class="num">${r.children}명 <small>(FOC ${r.foc}명 별도)</small></td></tr>
+      <tr><td>1인 원가 (FOC·객실·단체 분담 ${won(r.sharedPer)} 포함)</td><td class="num">${won(r.costAdult)}</td><td class="num">${r.children ? won(r.costChild) : "-"}</td></tr>
+      <tr class="total"><td>1인 판매가 (마진 ${r.marginPct}%)</td><td class="num big">${won(r.saleAdult)}</td><td class="num big">${r.children ? won(r.saleChild) : "-"}</td></tr>
+      <tr><td>판매 총액</td><td class="num" colspan="2">${won(r.totalSale)}</td></tr>
+      <tr class="total"><td>예상 수익 (판매 총액 − 원가 총액)</td><td class="num" colspan="2">${won(r.profit)}${r.totalSale ? ` <small>(판매가 대비 ${(r.profit / r.totalSale * 100).toFixed(1)}%)</small>` : ""}</td></tr>`;
+  }
+
+  function update() {
+    const r = calc();
+    r.rows.forEach((v, i) => { const td = document.querySelector(`[data-total="${i}"]`); if (td) td.textContent = won(v); });
+    $("summary").innerHTML = summaryHTML(r);
+    $("warnings").innerHTML = [...new Set(r.warnings)].map((w) => `<p class="warn">⚠ ${esc(w)}</p>`).join("");
+    renderQuote(r);
+    save();
+  }
+
+  function renderQuote(r) {
+    const F = state.fields;
+    const period = [F.depart, (F.nights || F.days) ? `${int(F.nights)}박 ${int(F.days)}일` : ""].filter(Boolean).join(" / ");
+    const people = `성인 ${r.adults}명${r.children ? `, 아동 ${r.children}명` : ""}${r.foc ? ` (FOC ${r.foc}명 별도)` : ""}`;
+    const meta = [["수신", F.client], ["행사명", F.title], ["목적지", F.dest], ["일정", period],
+                  ["인원", people], ["견적일", F.qdate], ["담당자", F.staff]].filter(([, v]) => v);
+    $("q-meta").innerHTML = meta.map(([k, v]) => `<tr><td>${k}</td><td>${esc(v)}</td></tr>`).join("");
+    const price = [["성인 1인 요금", won(r.saleAdult)]];
+    if (r.children) price.push(["아동 1인 요금", won(r.saleChild)]);
+    price.push(["총 금액", `${won(r.totalSale)} <small>(성인 ${r.adults}명${r.children ? ` + 아동 ${r.children}명` : ""})</small>`]);
+    $("q-price").innerHTML = price.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("");
+    $("q-incl").textContent = F.incl || "";
+    $("q-excl").textContent = F.excl || "";
+    $("q-memo").textContent = F.memo || "";
+    $("q-memo-wrap").style.display = F.memo ? "" : "none";
+    $("q-foot").textContent = F.valid ? `견적 유효기간: ${F.valid}` : "";
+
+    $("ip-items").innerHTML = `<tr><th>구분</th><th>내역</th><th>통화</th><th>방식</th><th class="num">단가</th><th class="num">아동 단가</th><th class="num">객실</th><th class="num">원화 합계</th></tr>` +
+      state.items.map((it, i) => `<tr><td>${esc(it.cat)}</td><td>${esc(it.desc)}</td><td>${esc(it.cur)} ${it.cur !== "KRW" ? `(${rateOf(it.cur)})` : ""}</td><td>${MODES[it.mode]}</td><td class="num">${esc(it.adult)}</td><td class="num">${it.mode === "pp" ? esc(it.child) : ""}</td><td class="num">${it.mode === "room" ? esc(it.rooms) : ""}</td><td class="num">${won(r.rows[i])}</td></tr>`).join("");
+    $("ip-summary").innerHTML = summaryHTML(r);
+  }
+
+  /* ---------- 저장 ---------- */
+  function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} }
+  function load() {
+    try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s && s.fields && s.items && s.fx) state = s; } catch (e) {}
+  }
+  function fillFields() { FIELDS.forEach((k) => { $(k).value = state.fields[k] ?? ""; }); }
+  function renderAll() { fillFields(); renderFx(); renderItems(); update(); }
+
+  /* ---------- 이벤트 ---------- */
+  FIELDS.forEach((k) => $(k).addEventListener("input", () => { state.fields[k] = $(k).value; update(); }));
+
+  $("fxTable").addEventListener("input", (e) => {
+    const i = e.target.dataset.fx; if (i === undefined) return;
+    const k = e.target.dataset.k;
+    if (k === "cur") {
+      const old = state.fx[i].cur, nu = e.target.value.toUpperCase().trim();
+      state.fx[i].cur = nu;
+      state.items.forEach((it) => { if (it.cur === old) it.cur = nu; });
+      renderItems();
+    } else state.fx[i][k] = e.target.value;
+    update();
+  });
+  $("fxTable").addEventListener("click", (e) => {
+    const i = e.target.dataset.delfx; if (i === undefined) return;
+    const cur = state.fx[i].cur;
+    if (state.items.some((it) => it.cur === cur) && !confirm(`${cur}를 쓰는 원가 항목이 있습니다. 삭제하면 해당 항목은 원화(KRW)로 바뀝니다. 계속할까요?`)) return;
+    state.items.forEach((it) => { if (it.cur === cur) it.cur = "KRW"; });
+    state.fx.splice(i, 1); renderFx(); renderItems(); update();
+  });
+  $("addFx").addEventListener("click", () => {
+    const cur = (prompt("통화 코드 (예: THB, VND, CNY)") || "").toUpperCase().trim();
+    if (!cur) return;
+    if (state.fx.some((f) => f.cur === cur)) return alert("이미 있는 통화입니다.");
+    state.fx.push({ cur, rate: "" }); renderFx(); renderItems(); update();
+  });
+
+  $("itemTable").addEventListener("input", (e) => {
+    const i = e.target.dataset.it; if (i === undefined) return;
+    const k = e.target.dataset.k;
+    state.items[i][k] = e.target.value;
+    if (k === "mode") renderItems();
+    update();
+  });
+  $("itemTable").addEventListener("click", (e) => {
+    const i = e.target.dataset.delit; if (i === undefined) return;
+    state.items.splice(i, 1); renderItems(); update();
+  });
+  document.querySelectorAll("[data-add]").forEach((b) => b.addEventListener("click", () => {
+    const cat = b.dataset.add;
+    state.items.push({ cat, desc: "", cur: "KRW", mode: DEFAULT_MODE[cat], adult: "", child: "", rooms: "" });
+    renderItems(); update();
+  }));
+
+  $("printBtn").addEventListener("click", () => {
+    document.body.classList.toggle("print-internal", $("printInternal").checked);
+    update(); window.print();
+  });
+  $("saveFile").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    const name = (state.fields.title || "견적").replace(/[\\/:*?"<>|]/g, "_");
+    a.href = URL.createObjectURL(blob); a.download = `${name}_${state.fields.qdate || today()}.json`;
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+  $("loadFile").addEventListener("click", () => $("fileInput").click());
+  $("fileInput").addEventListener("change", async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const s = JSON.parse(await f.text());
+      if (!s.fields || !Array.isArray(s.items) || !Array.isArray(s.fx)) throw new Error();
+      state = s; renderAll();
+    } catch (err) { alert("견적 파일 형식이 아닙니다."); }
+    e.target.value = "";
+  });
+  $("resetBtn").addEventListener("click", () => {
+    if (!confirm("현재 입력을 모두 지우고 새 견적을 시작할까요? (저장하지 않은 내용은 사라집니다)")) return;
+    state = defaults(); renderAll();
+  });
+
+  load(); renderAll();
+})();
+</script>
+</body>
+</html>
