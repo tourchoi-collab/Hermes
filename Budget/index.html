@@ -34,10 +34,16 @@
   td.num, th.num { text-align: right; white-space: nowrap; }
   td input, td select { padding: 4px 6px; font-size: .9rem; }
   .items td:nth-child(1) { min-width: 90px; }
-  .items td:nth-child(2) { min-width: 160px; }
+  .items td:nth-child(2) { min-width: 170px; }
   .items td:nth-child(3) { min-width: 80px; }
-  .items td:nth-child(4) { min-width: 130px; }
-  .items td:nth-child(5), .items td:nth-child(6), .items td:nth-child(7), .items td:nth-child(8) { min-width: 90px; }
+  .items td:nth-child(4) { min-width: 140px; }
+  .items td:nth-child(5), .items td:nth-child(6) { min-width: 95px; }
+  .items td:nth-child(7), .items td:nth-child(8) { min-width: 70px; }
+  .items td:nth-child(9) { min-width: 110px; }
+  .items tr.cat-start td { border-top: 2px solid #999; }
+  .tag { display: inline-block; font-size: .7rem; color: var(--accent); margin-top: 2px; }
+  .summary tr.sub td { font-size: .84rem; color: var(--muted); }
+  .summary tr.sub td:first-child { padding-left: 22px; }
   .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   button {
     font: inherit; font-size: .88rem; padding: 6px 12px; border-radius: 4px;
@@ -111,8 +117,9 @@
       <thead>
         <tr>
           <th>구분</th><th>내역</th><th>통화</th><th>계산 방식</th>
-          <th class="num">성인 단가<br><small>(단체·객실은 단가)</small></th>
+          <th class="num">성인 단가<br><small>(공동 경비는 단가)</small></th>
           <th class="num">아동 단가</th>
+          <th class="num">수량<br><small>(일수·횟수)</small></th>
           <th class="num">객실 수</th>
           <th class="num">원화 합계</th>
           <th></th>
@@ -126,15 +133,18 @@
     <button type="button" data-add="호텔">+ 호텔</button>
     <button type="button" data-add="지상비">+ 지상비</button>
     <button type="button" data-add="기타">+ 기타 경비</button>
+    <button type="button" id="addLandSet">+ 지상비 기본 세부 항목 넣기</button>
   </div>
   <p class="note">
-    <b>1인당</b>: 성인 단가 × (성인 + FOC) + 아동 단가 × 아동 · 아동 단가를 비우면 성인 단가 적용<br>
-    <b>객실×박</b>: 1실 1박 단가 × 객실 수 × 박 수 (FOC 객실도 객실 수에 포함해 입력)<br>
-    <b>단체 총액</b>: 버스·가이드비처럼 팀 전체에 한 번 드는 금액
+    <b>개인 경비</b>(항공료·식사비·입장료 등): 단가 × 수량 × 인원 — 성인 단가 × 수량 × (성인 + FOC) + 아동 단가 × 수량 × 아동 · 아동 단가를 비우면 성인 단가 적용<br>
+    <b>공동 경비</b>(차량비·가이드비·팁·인솔자비 등): 단가 × 수량 — 팀 전체에 드는 비용 (1일 단가 × 일수 등). 합계를 유료 인원으로 나눠 1인 원가에 더합니다.<br>
+    <b>공동(객실×박)</b>: 1실 1박 단가 × 객실 수 × 박 수 (FOC·가이드 객실도 객실 수에 포함해 입력)<br>
+    <b>수량</b>: <span class="tag">일수 연동</span> 표시가 있으면 행사 일수를 자동으로 따라가고, 직접 고치면 그 값으로 고정됩니다. 비어 있으면 0으로 계산합니다.
   </p>
 
   <h2>4. 마진 · 반올림</h2>
   <div class="grid">
+    <label>랜드사 마진(%) — 지상비 합계에 추가<input id="landMargin" type="number" step="0.1" value="0"></label>
     <label>마진율(%) — 판매가 = 원가 × (1 + 마진율)<input id="margin" type="number" step="0.1" value="10"></label>
     <label>1인 판매가 올림 단위
       <select id="round">
@@ -152,7 +162,7 @@
   </div>
   <div id="warnings"></div>
   <p class="note">
-    FOC 원가(1인당 항목 × FOC 수)와 객실·단체 비용은 유료 인원(성인 + 아동) 수로 똑같이 나눠 1인 원가에 더합니다.
+    공동 경비(차량·가이드·팁·인솔자·객실 등)와 FOC 인원의 개인 경비는 유료 인원(성인 + 아동) 수로 똑같이 나눠 1인 원가에 더합니다.
     부가세 등 세금은 계산에 포함하지 않았습니다.
   </p>
 
@@ -212,10 +222,29 @@
   const STORE_KEY = "hermes-budget-quote-v1";
   const $ = (id) => document.getElementById(id);
   const FIELDS = ["title","client","dest","depart","nights","days","adults","children","foc",
-                  "staff","qdate","valid","margin","round","incl","excl","memo"];
-  const MODES = { pp: "1인당", room: "객실×박", group: "단체 총액" };
+                  "staff","qdate","valid","landMargin","margin","round","incl","excl","memo"];
+  const MODES = { pp: "개인 경비", group: "공동 경비", room: "공동(객실×박)" };
   const CATS = ["항공","호텔","지상비","기타"];
   const DEFAULT_MODE = { "항공": "pp", "호텔": "room", "지상비": "pp", "기타": "group" };
+
+  // 지상비 기본 세부 항목 (qtyDays: 수량이 행사 일수를 따라감)
+  function landSet() {
+    const L = (desc, mode, extra) => Object.assign(
+      { cat: "지상비", desc, cur: "USD", mode, adult: "", child: "", qty: "", qtyDays: false, rooms: "" }, extra || {});
+    return [
+      L("전용 차량 (1일)", "group", { qtyDays: true }),
+      L("가이드 경비 (1일)", "group", { qtyDays: true }),
+      L("기사 경비 (1일)", "group", { qtyDays: true }),
+      L("가이드·기사 팁 (1일)", "group", { qtyDays: true }),
+      L("공항 미팅·송영", "group", { qty: "1" }),
+      L("가이드 숙박", "room", { rooms: "1" }),
+      L("조식 (1회)", "pp"),
+      L("중식 (1회)", "pp"),
+      L("석식 (1회)", "pp"),
+      L("관광지 입장료", "pp", { qty: "1" }),
+      L("생수·기타 (1인 1일)", "pp", { qtyDays: true })
+    ];
+  }
 
   let state = defaults();
 
@@ -226,17 +255,28 @@
   function defaults() {
     return {
       fields: { nights: "3", days: "5", adults: "15", children: "0", foc: "1",
-                margin: "10", round: "1000", qdate: today() },
+                landMargin: "0", margin: "10", round: "1000", qdate: today() },
       fx: [ { cur: "KRW", rate: 1 }, { cur: "USD", rate: "" }, { cur: "EUR", rate: "" }, { cur: "JPY", rate: "" } ],
       items: [
-        { cat: "항공", desc: "왕복 항공권", cur: "KRW", mode: "pp", adult: "", child: "", rooms: "" },
-        { cat: "호텔", desc: "호텔 2인 1실", cur: "USD", mode: "room", adult: "", child: "", rooms: "8" },
-        { cat: "지상비", desc: "현지 지상비", cur: "USD", mode: "pp", adult: "", child: "", rooms: "" }
+        { cat: "항공", desc: "왕복 항공권", cur: "KRW", mode: "pp", adult: "", child: "", qty: "1", qtyDays: false, rooms: "" },
+        { cat: "호텔", desc: "호텔 2인 1실", cur: "USD", mode: "room", adult: "", child: "", qty: "", qtyDays: false, rooms: "8" },
+        ...landSet(),
+        { cat: "기타", desc: "인솔자 경비 (1일)", cur: "KRW", mode: "group", adult: "", child: "", qty: "", qtyDays: true, rooms: "" }
       ]
     };
   }
+  // 이전 버전 저장본(수량 칸 없음)은 수량 1로 맞춤
+  function migrate(s) {
+    s.fields.landMargin = s.fields.landMargin ?? "0";
+    s.items.forEach((it) => {
+      if (it.mode === "group" || it.mode === "pp" || it.mode === "room") {} else it.mode = "group";
+      if (it.qty === undefined) it.qty = "1";
+      if (it.qtyDays === undefined) it.qtyDays = false;
+    });
+    return s;
+  }
 
-  const num = (v) => { const n = parseFloat(String(v).replace(/,/g, "")); return isFinite(n) ? n : 0; };
+  const num = (v) => { const n = parseFloat(String(v ?? "").replace(/,/g, "")); return isFinite(n) ? n : 0; };
   const int = (v) => Math.max(0, Math.floor(num(v)));
   const won = (n) => Math.round(n).toLocaleString("ko-KR") + "원";
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
@@ -246,6 +286,7 @@
     const f = state.fx.find((x) => x.cur === cur);
     return f ? num(f.rate) : 0;
   }
+  const qtyOf = (it) => it.qtyDays ? int(state.fields.days) : num(it.qty);
 
   /* ---------- 계산 ---------- */
   function calc() {
@@ -253,29 +294,35 @@
     const adults = int(F.adults), children = int(F.children), foc = int(F.foc), nights = int(F.nights);
     const paying = adults + children;
     const marginPct = num(F.margin);
+    const landPct = num(F.landMargin);
     const roundUnit = Math.max(1, int(F.round) || 1);
     const warnings = [];
 
-    let ppAdult = 0, ppChild = 0, shared = 0;
+    let ppAdult = 0, ppChild = 0, shared = 0, landMargin = 0;
     const byCat = {}; CATS.forEach((c) => (byCat[c] = 0));
     const rows = state.items.map((it) => {
+      const name = it.desc || it.cat;
       const r = rateOf(it.cur);
-      if (it.cur !== "KRW" && !r && (num(it.adult) || num(it.child))) warnings.push(`${it.cur} 환율이 입력되지 않았습니다 (${it.desc || it.cat}).`);
-      let total = 0;
+      const hasPrice = num(it.adult) || num(it.child);
+      if (it.cur !== "KRW" && !r && hasPrice) warnings.push(`${it.cur} 환율이 입력되지 않았습니다 (${name}).`);
+      const q = qtyOf(it);
+      if (it.mode !== "room" && hasPrice && !q) warnings.push(`수량이 0입니다 (${name}).`);
+      let a = 0, c = 0, sh = 0, total = 0;
       if (it.mode === "pp") {
-        const a = num(it.adult) * r;
-        const c = (String(it.child).trim() === "" ? num(it.adult) : num(it.child)) * r;
-        ppAdult += a; ppChild += c;
-        shared += a * foc;                       // FOC 원가 → 유료 인원 분담
+        a = num(it.adult) * r * q;
+        c = (String(it.child ?? "").trim() === "" ? num(it.adult) : num(it.child)) * r * q;
+        sh = a * foc;                            // FOC 원가 → 유료 인원 분담
         total = a * (adults + foc) + c * children;
       } else if (it.mode === "room") {
-        total = num(it.adult) * r * int(it.rooms) * nights;
-        if (num(it.adult) && !int(it.rooms)) warnings.push(`객실 수가 0입니다 (${it.desc || it.cat}).`);
-        shared += total;
+        if (num(it.adult) && !int(it.rooms)) warnings.push(`객실 수가 0입니다 (${name}).`);
+        sh = total = num(it.adult) * r * int(it.rooms) * nights;
       } else {
-        total = num(it.adult) * r;
-        shared += total;
+        sh = total = num(it.adult) * r * q;
       }
+      // 랜드사 마진: 지상비 항목에 같은 비율로 붙여 1인 원가에 반영
+      const k = it.cat === "지상비" ? 1 + landPct / 100 : 1;
+      ppAdult += a * k; ppChild += c * k; shared += sh * k;
+      if (it.cat === "지상비") landMargin += total * landPct / 100;
       byCat[it.cat] = (byCat[it.cat] || 0) + total;
       return total;
     });
@@ -287,11 +334,11 @@
     const ceil = (v) => Math.ceil(Math.round(v) / roundUnit) * roundUnit;
     const saleAdult = paying ? ceil(costAdult * (1 + marginPct / 100)) : 0;
     const saleChild = paying ? ceil(costChild * (1 + marginPct / 100)) : 0;
-    const totalCost = rows.reduce((s, v) => s + v, 0);
+    const totalCost = rows.reduce((s, v) => s + v, 0) + landMargin;
     const totalSale = saleAdult * adults + saleChild * children;
     const profit = totalSale - totalCost;
 
-    return { adults, children, foc, paying, nights, rows, byCat, sharedPer, costAdult, costChild,
+    return { ppAdult, ppChild, shared, adults, children, foc, paying, nights, rows, byCat, landMargin, landPct, sharedPer, costAdult, costChild,
              saleAdult, saleChild, totalCost, totalSale, profit, marginPct, warnings };
   }
 
@@ -314,28 +361,44 @@
 
   function renderItems() {
     const tb = $("itemTable").tBodies[0];
-    tb.innerHTML = state.items.map((it, i) => `
-      <tr data-row="${i}">
+    tb.innerHTML = state.items.map((it, i) => {
+      const isPP = it.mode === "pp", isRoom = it.mode === "room";
+      const prev = state.items[i - 1];
+      const qtyVal = it.qtyDays ? int(state.fields.days) : it.qty;
+      return `
+      <tr data-row="${i}" class="${i > 0 && prev.cat !== it.cat ? "cat-start" : ""}">
         <td><select data-it="${i}" data-k="cat">${CATS.map((c) => `<option ${c === it.cat ? "selected" : ""}>${c}</option>`).join("")}</select></td>
         <td><input data-it="${i}" data-k="desc" value="${esc(it.desc)}"></td>
         <td><select data-it="${i}" data-k="cur">${curOptions(it.cur)}</select></td>
         <td><select data-it="${i}" data-k="mode">${Object.entries(MODES).map(([k, v]) => `<option value="${k}" ${k === it.mode ? "selected" : ""}>${v}</option>`).join("")}</select></td>
         <td><input type="number" step="any" min="0" data-it="${i}" data-k="adult" value="${esc(it.adult)}"></td>
-        <td class="${it.mode === "pp" ? "" : "disabled"}"><input type="number" step="any" min="0" data-it="${i}" data-k="child" value="${esc(it.child)}" ${it.mode === "pp" ? "" : "disabled"} placeholder="${it.mode === "pp" ? "= 성인" : ""}"></td>
-        <td class="${it.mode === "room" ? "" : "disabled"}"><input type="number" step="1" min="0" data-it="${i}" data-k="rooms" value="${esc(it.rooms)}" ${it.mode === "room" ? "" : "disabled"}></td>
+        <td class="${isPP ? "" : "disabled"}"><input type="number" step="any" min="0" data-it="${i}" data-k="child" value="${esc(it.child)}" ${isPP ? "" : "disabled"} placeholder="${isPP ? "= 성인" : ""}"></td>
+        <td class="${isRoom ? "disabled" : ""}"><input type="number" step="any" min="0" data-it="${i}" data-k="qty" value="${esc(isRoom ? "" : qtyVal)}" ${isRoom ? "disabled" : ""}>${!isRoom && it.qtyDays ? `<span class="tag">일수 연동</span>` : ""}</td>
+        <td class="${isRoom ? "" : "disabled"}"><input type="number" step="1" min="0" data-it="${i}" data-k="rooms" value="${esc(it.rooms)}" ${isRoom ? "" : "disabled"}></td>
         <td class="num" data-total="${i}"></td>
         <td><button type="button" class="del" data-delit="${i}" title="삭제">✕</button></td>
-      </tr>`).join("");
+      </tr>`;
+    }).join("");
   }
 
   function summaryHTML(r) {
-    const catRows = CATS.map((c) => `<tr><td>${c}</td><td class="num" colspan="2">${won(r.byCat[c] || 0)}</td></tr>`).join("");
+    const catRows = CATS.map((c) => {
+      let h = `<tr><td>${c}</td><td class="num" colspan="2">${won(r.byCat[c] || 0)}</td></tr>`;
+      if (c === "지상비") {
+        h += state.items.map((it, i) => it.cat === "지상비" && r.rows[i]
+          ? `<tr class="sub"><td>· ${esc(it.desc || "(내역 없음)")}</td><td class="num" colspan="2">${won(r.rows[i])}</td></tr>` : "").join("");
+        if (r.landMargin) h += `<tr class="sub"><td>· 랜드사 마진 (${r.landPct}%)</td><td class="num" colspan="2">${won(r.landMargin)}</td></tr>`;
+      }
+      return h;
+    }).join("");
     return `
       <tr><th>항목</th><th class="num">성인</th><th class="num">아동</th></tr>
       ${catRows}
-      <tr class="total"><td>원가 총액 (FOC 포함)</td><td class="num" colspan="2">${won(r.totalCost)}</td></tr>
+      <tr class="total"><td>원가 총액 (FOC·랜드사 마진 포함)</td><td class="num" colspan="2">${won(r.totalCost)}</td></tr>
       <tr><td>인원</td><td class="num">${r.adults}명</td><td class="num">${r.children}명 <small>(FOC ${r.foc}명 별도)</small></td></tr>
-      <tr><td>1인 원가 (FOC·객실·단체 분담 ${won(r.sharedPer)} 포함)</td><td class="num">${won(r.costAdult)}</td><td class="num">${r.children ? won(r.costChild) : "-"}</td></tr>
+      <tr class="sub"><td>개인 경비</td><td class="num">${won(r.ppAdult)}</td><td class="num">${r.children ? won(r.ppChild) : "-"}</td></tr>
+      <tr class="sub"><td>공동 경비 분담 (${won(r.shared)} ÷ 유료 ${r.paying}명, FOC 비용 포함)</td><td class="num">${won(r.sharedPer)}</td><td class="num">${r.children ? won(r.sharedPer) : "-"}</td></tr>
+      <tr><td>1인 원가</td><td class="num">${won(r.costAdult)}</td><td class="num">${r.children ? won(r.costChild) : "-"}</td></tr>
       <tr class="total"><td>1인 판매가 (마진 ${r.marginPct}%)</td><td class="num big">${won(r.saleAdult)}</td><td class="num big">${r.children ? won(r.saleChild) : "-"}</td></tr>
       <tr><td>판매 총액</td><td class="num" colspan="2">${won(r.totalSale)}</td></tr>
       <tr class="total"><td>예상 수익 (판매 총액 − 원가 총액)</td><td class="num" colspan="2">${won(r.profit)}${r.totalSale ? ` <small>(판매가 대비 ${(r.profit / r.totalSale * 100).toFixed(1)}%)</small>` : ""}</td></tr>`;
@@ -367,21 +430,26 @@
     $("q-memo-wrap").style.display = F.memo ? "" : "none";
     $("q-foot").textContent = F.valid ? `견적 유효기간: ${F.valid}` : "";
 
-    $("ip-items").innerHTML = `<tr><th>구분</th><th>내역</th><th>통화</th><th>방식</th><th class="num">단가</th><th class="num">아동 단가</th><th class="num">객실</th><th class="num">원화 합계</th></tr>` +
-      state.items.map((it, i) => `<tr><td>${esc(it.cat)}</td><td>${esc(it.desc)}</td><td>${esc(it.cur)} ${it.cur !== "KRW" ? `(${rateOf(it.cur)})` : ""}</td><td>${MODES[it.mode]}</td><td class="num">${esc(it.adult)}</td><td class="num">${it.mode === "pp" ? esc(it.child) : ""}</td><td class="num">${it.mode === "room" ? esc(it.rooms) : ""}</td><td class="num">${won(r.rows[i])}</td></tr>`).join("");
+    $("ip-items").innerHTML = `<tr><th>구분</th><th>내역</th><th>통화</th><th>방식</th><th class="num">단가</th><th class="num">아동 단가</th><th class="num">수량</th><th class="num">객실</th><th class="num">원화 합계</th></tr>` +
+      state.items.map((it, i) => `<tr><td>${esc(it.cat)}</td><td>${esc(it.desc)}</td><td>${esc(it.cur)} ${it.cur !== "KRW" ? `(${rateOf(it.cur)})` : ""}</td><td>${MODES[it.mode]}</td><td class="num">${esc(it.adult)}</td><td class="num">${it.mode === "pp" ? esc(it.child) : ""}</td><td class="num">${it.mode === "room" ? "" : qtyOf(it)}</td><td class="num">${it.mode === "room" ? esc(it.rooms) : ""}</td><td class="num">${won(r.rows[i])}</td></tr>`).join("") +
+      (r.landMargin ? `<tr><td>지상비</td><td colspan="7">랜드사 마진 (${r.landPct}%)</td><td class="num">${won(r.landMargin)}</td></tr>` : "");
     $("ip-summary").innerHTML = summaryHTML(r);
   }
 
   /* ---------- 저장 ---------- */
   function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} }
   function load() {
-    try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s && s.fields && s.items && s.fx) state = s; } catch (e) {}
+    try { const s = JSON.parse(localStorage.getItem(STORE_KEY)); if (s && s.fields && s.items && s.fx) state = migrate(s); } catch (e) {}
   }
   function fillFields() { FIELDS.forEach((k) => { $(k).value = state.fields[k] ?? ""; }); }
   function renderAll() { fillFields(); renderFx(); renderItems(); update(); }
 
   /* ---------- 이벤트 ---------- */
-  FIELDS.forEach((k) => $(k).addEventListener("input", () => { state.fields[k] = $(k).value; update(); }));
+  FIELDS.forEach((k) => $(k).addEventListener("input", () => {
+    state.fields[k] = $(k).value;
+    if (k === "days") renderItems();       // 일수 연동 수량 갱신
+    update();
+  }));
 
   $("fxTable").addEventListener("input", (e) => {
     const i = e.target.dataset.fx; if (i === undefined) return;
@@ -411,19 +479,32 @@
   $("itemTable").addEventListener("input", (e) => {
     const i = e.target.dataset.it; if (i === undefined) return;
     const k = e.target.dataset.k;
-    state.items[i][k] = e.target.value;
-    if (k === "mode") renderItems();
+    const it = state.items[i];
+    it[k] = e.target.value;
+    if (k === "qty" && it.qtyDays) {         // 직접 고치면 일수 연동 해제
+      it.qtyDays = false;
+      const tag = e.target.parentElement.querySelector(".tag"); if (tag) tag.remove();
+    }
+    if (k === "mode" || k === "cat") renderItems();
     update();
   });
   $("itemTable").addEventListener("click", (e) => {
     const i = e.target.dataset.delit; if (i === undefined) return;
     state.items.splice(i, 1); renderItems(); update();
   });
+  // 같은 구분의 마지막 줄 뒤에 추가
+  function insertItems(cat, list) {
+    let at = -1;
+    state.items.forEach((it, i) => { if (it.cat === cat) at = i; });
+    if (at < 0) { const ci = CATS.indexOf(cat); state.items.forEach((it, i) => { if (CATS.indexOf(it.cat) < ci) at = i; }); }
+    state.items.splice(at + 1, 0, ...list);
+    renderItems(); update();
+  }
   document.querySelectorAll("[data-add]").forEach((b) => b.addEventListener("click", () => {
     const cat = b.dataset.add;
-    state.items.push({ cat, desc: "", cur: "KRW", mode: DEFAULT_MODE[cat], adult: "", child: "", rooms: "" });
-    renderItems(); update();
+    insertItems(cat, [{ cat, desc: "", cur: "KRW", mode: DEFAULT_MODE[cat], adult: "", child: "", qty: "1", qtyDays: false, rooms: "" }]);
   }));
+  $("addLandSet").addEventListener("click", () => insertItems("지상비", landSet()));
 
   $("printBtn").addEventListener("click", () => {
     document.body.classList.toggle("print-internal", $("printInternal").checked);
@@ -442,7 +523,7 @@
     try {
       const s = JSON.parse(await f.text());
       if (!s.fields || !Array.isArray(s.items) || !Array.isArray(s.fx)) throw new Error();
-      state = s; renderAll();
+      state = migrate(s); renderAll();
     } catch (err) { alert("견적 파일 형식이 아닙니다."); }
     e.target.value = "";
   });
